@@ -46,21 +46,10 @@ OS X: brew install tmux""", file=sys.stderr)
     sys.exit(which_call.returncode)
 
 parser = argparse.ArgumentParser(description="run commands in parallel using tmux")
-parser.add_argument('-f', '--file', dest='file', default=[], action='append', required=True,
-                    help='file of commands that can run in parallel')
+parser.add_argument('commands', nargs='+', help='file of commands that can run in parallel')
 parser.add_argument('-s', '--session', dest='session', default='ptmux',
                     help='specific a tmux session to run with')
 args = parser.parse_args()
-
-parallel_groups = []
-
-for brew_file in args.file:
-    with open(brew_file, 'r') as f:
-        apps = f.readlines()
-        apps = [x for x in apps if not x.startswith('#')]
-        apps = [x.replace('\n', '').strip() for x in apps]
-        apps = [x for x in apps if len(x) > 0]
-        parallel_groups.append(apps)
 
 command_wrapper = """
 while true; do
@@ -80,19 +69,18 @@ done
 initial_sleep = 2
 tmux_session = args.session
 
-for group in parallel_groups:
-    tmux_split_param = ['', '-h', '-v -t 0', '-v -t 1']
-    progress = -1
-    for command in group:
-        progress += 1
-        cmd = (command_wrapper % command).replace('\n', ' ')
-        print(cmd)
-        if progress > 0 and progress % 4 == 0:
-            call("tmux new-window '%s'" % cmd)
-            call("tmux select-window -t %s:%d" % (tmux_session, progress / 4))
-        elif progress == 0:
-            call("tmux new-session -d -s %s 'sleep %d && %s'" % (tmux_session, initial_sleep, cmd))
-        else:
-            param = tmux_split_param[progress % 4]
-            call("tmux split-window %s '%s'" % (param, cmd))
-    call("tmux -2 attach-session -t %s" % tmux_session)
+tmux_split_param = ['', '-h', '-v -t 0', '-v -t 1']
+progress = -1
+for command in args.commands:
+    progress += 1
+    cmd = (command_wrapper % command).replace('\n', ' ')
+    print(command)
+    if progress > 0 and progress % 4 == 0:
+        call("tmux new-window '%s'" % cmd)
+        call("tmux select-window -t %s:%d" % (tmux_session, progress / 4))
+    elif progress == 0:
+        call("tmux new-session -d -s %s 'sleep %d && %s'" % (tmux_session, initial_sleep, cmd))
+    else:
+        param = tmux_split_param[progress % 4]
+        call("tmux split-window %s '%s'" % (param, cmd))
+call("tmux -2 attach-session -t %s" % tmux_session)
