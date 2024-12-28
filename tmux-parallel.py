@@ -39,10 +39,10 @@ def call(shell_cmd):
 which_call = subprocess.Popen(['which', 'tmux'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 which_call.wait()
 if which_call.returncode != 0:
-    print >> sys.stderr, """Tmux not installed, try to install tmux with following commands first.
+    print("""Tmux not installed, try to install tmux with following commands first.
 Debian/Ubuntu: sudo apt-get install tmux
 Fedora/CentOS: sudo yum install tmux
-OS X: brew install tmux"""
+OS X: brew install tmux""", file=sys.stderr)
     sys.exit(which_call.returncode)
 
 parser = argparse.ArgumentParser(description="run commands in parallel using tmux")
@@ -57,9 +57,9 @@ parallel_groups = []
 for brew_file in args.file:
     with open(brew_file, 'r') as f:
         apps = f.readlines()
-        apps = filter(lambda x: not x.startswith('#'), apps)
-        apps = map(lambda x: x.replace('\n', '').strip(), apps)
-        apps = filter(lambda x: len(x) > 0, apps)
+        apps = [x for x in apps if not x.startswith('#')]
+        apps = [x.replace('\n', '').strip() for x in apps]
+        apps = [x for x in apps if len(x) > 0]
         parallel_groups.append(apps)
 
 command_wrapper = """
@@ -86,7 +86,7 @@ for group in parallel_groups:
     for command in group:
         progress += 1
         cmd = (command_wrapper % command).replace('\n', ' ')
-        print cmd
+        print(cmd)
         if progress > 0 and progress % 4 == 0:
             call("tmux new-window '%s'" % cmd)
             call("tmux select-window -t %s:%d" % (tmux_session, progress / 4))
